@@ -18,38 +18,44 @@ async function commitAndPush(repoUrl, githubToken) {
   }
 
   console.log('2. Đang tạo Commit...');
-  const sha = await git.commit({
-    fs,
-    dir,
-    author: {
-      name: 'OmniAffiliate Hub',
-      email: 'admin@nobitool.site',
-    },
-    message: 'Initial commit: OmniAffiliate Hub full source & workflows',
-  });
-  console.log('Commit SHA:', sha);
+  let sha;
+  try {
+    sha = await git.commit({
+      fs,
+      dir,
+      author: {
+        name: 'binhgold689',
+        email: 'binhdubai.68@gmail.com',
+      },
+      message: 'Initial commit: OmniAffiliate Hub full source & workflows for nobitool.site',
+    });
+    console.log('Commit SHA:', sha);
+  } catch (e) {
+    console.log('Commit note:', e.message);
+  }
+
+  // Set branch to main
+  await git.branch({ fs, dir, ref: 'main', checkout: true });
 
   if (repoUrl) {
     console.log(`3. Đang push lên GitHub: ${repoUrl}...`);
-    await git.push({
+    const pushResult = await git.push({
       fs,
       http,
       dir,
-      remote: 'origin',
       url: repoUrl,
       ref: 'main',
-      onAuth: () => ({ username: githubToken }),
+      remoteRef: 'refs/heads/main',
+      force: true,
+      onAuth: () => ({ username: githubToken || '' }),
     });
-    console.log('🎉 Push lên GitHub thành công 100%!');
-  } else {
-    console.log('Chưa cung cấp repoUrl. Sẵn sàng push khi có link!');
+    console.log('🎉 Push lên GitHub thành công 100%!', pushResult);
   }
 }
 
-// Lấy tham số từ dòng lệnh
 const repoUrl = process.argv[2];
 const token = process.argv[3];
 
 commitAndPush(repoUrl, token).catch(err => {
-  console.error('Lỗi Git:', err);
+  console.error('Chi tiết lỗi:', err);
 });
