@@ -1,0 +1,10 @@
+{
+  "name": "omniaffiliate-hub",
+  "version": "1.0.0",
+  "description": "OmniAffiliate Hub - Content & Affiliate Automation",
+  "main": "index.js",
+  "dependencies": {
+    "isomorphic-git": "^1.27.0",
+    "ssh2": "^1.17.0"
+  }
+}

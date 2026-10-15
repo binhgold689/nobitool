@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # 1. Cơ sở dữ liệu PostgreSQL cho n8n và OmniAffiliate Hub
+  postgres:
+    image: postgres:16-alpine
+    container_name: omniaffiliate_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-omniaff}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-omniaff_secret_password}
+      POSTGRES_DB: ${POSTGRES_DB:-omniaff_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aff_network
+
+  # 2. Bộ não tự động hóa n8n (Tích hợp sẵn FFmpeg để bẻ hash video)
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: omniaffiliate_n8n
+    restart: always
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-omniaff_db}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-omniaff}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-omniaff_secret_password}
+      - N8N_HOST=${SUBDOMAIN_N8N:-api.yourdomain.com}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://${SUBDOMAIN_N8N:-api.yourdomain.com}/
+      - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./scripts:/scripts
+    depends_on:
+      - postgres
+    networks:
+      - aff_network
+
+  # 3. Web Dashboard UI
+  dashboard:
+    image: nginx:alpine
+    container_name: omniaffiliate_dashboard
+    restart: always
+    ports:
+      - "8080:80"
+    volumes:
+      - ../dashboard:/usr/share/nginx/html:ro
+    networks:
+      - aff_network
+
+volumes:
+  postgres_data:
+  n8n_data:
+
+networks:
+  aff_network:
+    driver: bridge

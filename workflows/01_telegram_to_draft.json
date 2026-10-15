@@ -1,0 +1,233 @@
+{
+  "name": "OmniAffiliate - Telegram to Review Bot & Auto Post",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "channel_post"
+        ]
+      },
+      "id": "node-telegram-trigger",
+      "name": "1. Lắng nghe Kênh Telegram",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Boolean($json.channel_post.video || $json.message.video) }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-filter-video",
+      "name": "2. Lọc chỉ lấy tin nhắn có Video",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-1.5-flash",
+        "prompt": "=Hãy phân tích caption clip này: \"{{ $json.channel_post.caption || $json.message.caption || 'Clip hài hước đường phố' }}\".\n\nNhiệm vụ:\n1. Viết 1 câu caption ngắn gọn, hài hước đăng Facebook Reels.\n2. Chọn 1 trong các ngành hàng Shopee: [Xe đạp/Trẻ em, Phụ kiện Ô tô, Đồ gia dụng, Giày thể thao hot trend].\n3. Trả về JSON: {\"caption\": \"...\", \"category\": \"...\"}"
+      },
+      "id": "node-ai-writer",
+      "name": "3. AI Phân Tích & Viết Caption",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        680,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.MY_TELEGRAM_ADMIN_CHAT_ID }}",
+        "text": "=🎬 [BẢN NHÁP MỚI CẦN DUYỆT]\n\n📝 Caption Facebook: {{ $json.output.caption }}\n🎯 Ngành hàng: {{ $json.output.category }}\n\nBấm nút bên dưới để phát lệnh đăng ngay tới Fanpage & thả First Comment:",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": [
+                {
+                  "text": "🚀 Duyệt & Đăng Ngay",
+                  "additionalFields": {
+                    "callback_data": "=publish_{{ $json.channel_post.message_id || $json.message.message_id }}"
+                  }
+                },
+                {
+                  "text": "🗑️ Bỏ Qua",
+                  "additionalFields": {
+                    "callback_data": "=drop_{{ $json.channel_post.message_id || $json.message.message_id }}"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "id": "node-send-telegram-review",
+      "name": "4. Gửi Tin Nhắn Duyệt vào Telegram Cá Nhân",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        920,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ]
+      },
+      "id": "node-telegram-callback",
+      "name": "5. Bắt Sự Kiện Bấm Nút Duyệt",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.FB_PAGE_ID }}/videos",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "description",
+              "value": "={{ $json.caption }}"
+            }
+          ]
+        }
+      },
+      "id": "node-fb-post-video",
+      "name": "6. Đăng Video Lên Fanpage (Graph API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 20,
+        "unit": "seconds"
+      },
+      "id": "node-wait-video",
+      "name": "7. Chờ 20 giây cho Video xử lý",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $node['6. Đăng Video Lên Fanpage (Graph API)'].json.id }}/comments",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "Nay có deal này ngon em mời Sếp tham khảo ạ: https://s.shopee.vn/affiliate-link"
+            }
+          ]
+        }
+      },
+      "id": "node-fb-post-comment",
+      "name": "8. Thả First Comment Chứa Link Shopee",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        540
+      ]
+    }
+  ],
+  "connections": {
+    "1. Lắng nghe Kênh Telegram": {
+      "main": [
+        [
+          {
+            "node": "2. Lọc chỉ lấy tin nhắn có Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Lọc chỉ lấy tin nhắn có Video": {
+      "main": [
+        [
+          {
+            "node": "3. AI Phân Tích & Viết Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. AI Phân Tích & Viết Caption": {
+      "main": [
+        [
+          {
+            "node": "4. Gửi Tin Nhắn Duyệt vào Telegram Cá Nhân",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Bắt Sự Kiện Bấm Nút Duyệt": {
+      "main": [
+        [
+          {
+            "node": "6. Đăng Video Lên Fanpage (Graph API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Đăng Video Lên Fanpage (Graph API)": {
+      "main": [
+        [
+          {
+            "node": "7. Chờ 20 giây cho Video xử lý",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Chờ 20 giây cho Video xử lý": {
+      "main": [
+        [
+          {
+            "node": "8. Thả First Comment Chứa Link Shopee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
