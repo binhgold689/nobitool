@@ -35,7 +35,11 @@ async function commitAndPush(repoUrl, githubToken) {
   }
 
   // Set branch to main
-  await git.branch({ fs, dir, ref: 'main', checkout: true });
+  try {
+    await git.branch({ fs, dir, ref: 'main', checkout: true });
+  } catch (errBranch) {
+    // Branch đã tồn tại, tiếp tục checkout
+  }
 
   if (repoUrl) {
     console.log(`3. Đang push lên GitHub: ${repoUrl}...`);
